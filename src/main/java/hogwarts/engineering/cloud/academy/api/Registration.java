@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -24,6 +25,7 @@ public class Registration {
     @RequestMapping("/authentication")
     public StudentAuthentication getStudentAuth(@RequestParam(value = "student_roll_number") Long studentRollNumber) {
         if (studentAuthRepository.findByStudentRollNumber(studentRollNumber) != null) {
+            log.error("Student is already registered. Please see administrator for details.");
             throw new IllegalArgumentException("Student Roll Number already registered.");
         }
 
@@ -33,6 +35,7 @@ public class Registration {
         studentAuthentication.setStudentPassword(studentPassword);
 
         studentAuthRepository.save(studentAuthentication);
+        log.info("Student Authn information successfully delivered.");
         return studentAuthentication;
     }
 
@@ -42,26 +45,35 @@ public class Registration {
             @RequestParam(value = "student_notes") String studentNotes,
             @RequestParam(value = "student_roll_number") Long studentRollNumber,
             @RequestParam(value = "student_password") String studentPassword) {
-
         StudentAuthentication studentAuthentication = studentAuthRepository.findByStudentRollNumber(studentRollNumber);
         if (studentAuthentication == null) {
+            log.error("No authentication information passed.");
             throw new IllegalArgumentException("Student not registered due to invalid details.");
         } else if (!studentAuthentication.getStudentPassword().equals(studentPassword)) {
+            log.error("Authentication check failed for studentName = " + studentName);
             throw new IllegalArgumentException("Student authentication check failed.");
         } else {
-
             StudentDetails studentDetails = new StudentDetails();
             studentDetails.setStudentNotes(studentNotes);
             studentDetails.setStudentRollNumber(studentRollNumber);
             studentDetails.setStudentName(studentName);
 
             studentDetailsRepository.save(studentDetails);
+
+            log.info("Successful registration for student " + studentName);
             return studentDetails;
         }
     }
 
+    @RequestMapping("/students")
+    public List<StudentDetails> getAllStudentRegistration() {
+        log.info("All student registration details retrieved.");
+        return studentDetailsRepository.findAll();
+    }
+
     @RequestMapping("/whispers")
     public String getStudentWhispers(@RequestParam(value = "student_roll_number") Long studentRollNumber) {
+        log.info("Student Roll Number = " + studentRollNumber + " retrieving whispers ");
         StudentWhispers studentWhispers = studentWhisperRepository.findByStudentRollNumber(studentRollNumber);
         if (studentWhispers != null) {
             return studentWhispers.toString();
@@ -74,12 +86,14 @@ public class Registration {
     public String postClassNotes(@RequestParam(value = "student_roll_number") Long studentRollNumber,
                                  @RequestParam(value = "whispers") String whispers) {
         if (studentWhisperRepository.findByStudentRollNumber(studentRollNumber) == null) {
+            log.info("First whisper for student = " + studentRollNumber);
             StudentWhispers studentWhispers = new StudentWhispers();
             studentWhispers.setWhispers(whispers);
             studentWhispers.setStudentRollNumber(studentRollNumber);
             studentWhisperRepository.save(studentWhispers);
             return "First whisper saved successfully for student " + studentRollNumber;
         } else {
+            log.info("Popular in whispers " + studentRollNumber);
             StudentWhispers studentWhispers = studentWhisperRepository.findByStudentRollNumber(studentRollNumber);
             String oldWhispers = studentWhispers.getWhispers();
             studentWhispers.setWhispers(oldWhispers + "\n" + whispers);
